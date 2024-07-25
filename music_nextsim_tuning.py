@@ -124,3 +124,78 @@ def plot_all_rmse(rmse_r_list, rmse_n_list, tf_list, tp_list, rf_list, rp_list):
     ax.legend()
     plt.tight_layout()
     plt.show()
+
+def train_params(param_names, inp_ftrs, inp_lbls, inp_rgps, train_func, lbls_std, lbls_avg, n_repeats, epochs, patience, ax=None):
+    rgps_pred_params = {}
+    test_pred_params = {}
+    test_labe_params = {}
+    test_prms_params = {}
+    train_prms_params = {}
+
+    for param_name in param_names:
+        print(param_name)
+
+        rgps_pred_all = []
+        test_pred_all = []
+        test_labe_all = []
+        test_prms_all = []
+        train_pred_all = []
+        train_prms_all = []
+
+        for i in range(n_repeats):
+            train_features = inp_ftrs.sample(frac=0.85)
+            test_features = inp_ftrs.drop(train_features.index)
+
+            train_labels = inp_lbls[param_name][train_features.index]
+            test_labels = inp_lbls[param_name].drop(train_features.index)
+            test_params = inp_lbls.drop(train_features.index)
+            train_params = inp_lbls.loc[train_features.index]
+
+            model, history = train_func(train_features, train_labels, test_features, test_labels)
+
+            train_predictions = model.predict(train_features).flatten()
+            test_predictions = model.predict(test_features).flatten()
+            rgps_predictions = model.predict(inp_rgps).flatten()
+
+            train_predictions = train_predictions * lbls_std[param_name] + lbls_avg[param_name]
+            test_predictions = test_predictions * lbls_std[param_name] + lbls_avg[param_name]
+            train_labels = train_labels * lbls_std[param_name] + lbls_avg[param_name]
+            test_labels = test_labels * lbls_std[param_name] + lbls_avg[param_name]
+            test_params = test_params * lbls_std + lbls_avg
+            train_params = train_params * lbls_std + lbls_avg
+            rgps_predictions = rgps_predictions * lbls_std[param_name] + lbls_avg[param_name]
+
+            test_pred_all.append(test_predictions)
+            rgps_pred_all.append(rgps_predictions)
+            test_labe_all.append(test_labels)
+            test_prms_all.append(test_params)
+            train_prms_all.append(train_params)
+            train_pred_all.append(train_predictions)
+
+            if ax and history:
+                plot_loss(ax, history)
+
+        rgps_pred_params[param_name] = rgps_pred_all
+        test_pred_params[param_name] = test_pred_all
+        test_labe_params[param_name] = test_labe_all
+        test_prms_params[param_name] = test_prms_all
+        train_prms_params[param_name] = train_prms_all
+
+    return rgps_pred_params, test_pred_params, test_labe_params, test_prms_params, train_prms_params
+
+def plot_scatter_histo(param_names, test_labe_params, test_pred_params, rgps_pred_params, bins, density, xlims):
+    for param_name in param_names:
+        fig, axs = plt.subplots(1, 2, figsize=(15,5))
+        for test_labels, test_predictions in zip(test_labe_params[param_name], test_pred_params[param_name]):
+            axs[0].plot(test_labels, test_predictions, 'b.', alpha=0.1)
+            axs[0].set_ylabel('Predictions')
+            axs[0].set_xlabel(param_name)
+            axs[0].set_aspect('equal')
+            axs[0].plot([test_labels.min(), test_labels.max()], [test_labels.min(), test_labels.max()], '-k')
+        if param_name in xlims:
+            therange = xlims[param_name]
+        else:
+            therange = None
+        axs[1].hist(np.hstack(test_pred_params[param_name]), bins, range=therange, density=density, alpha=0.3, label='test')
+        axs[1].hist(np.hstack(rgps_pred_params[param_name]), bins, range=therange, density=density, alpha=0.3, label='test')
+        plt.show()
