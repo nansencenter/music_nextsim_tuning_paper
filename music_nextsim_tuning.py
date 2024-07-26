@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def read_and_scale(idir, max_date):
     inp_ftrs = pd.read_pickle(f'{idir}/ftrs.pickle')#.drop(columns=['date']).astype(float)
     inp_lbls = pd.read_pickle(f'{idir}/lbls.pickle')#.astype(float)
@@ -151,7 +150,7 @@ def train_params(param_names, inp_ftrs, inp_lbls, inp_rgps, train_func, lbls_std
             test_params = inp_lbls.drop(train_features.index)
             train_params = inp_lbls.loc[train_features.index]
 
-            model, history = train_func(train_features, train_labels, test_features, test_labels)
+            model, history = train_func(param_name, i, train_features, train_labels, test_features, test_labels)
 
             train_predictions = model.predict(train_features).flatten()
             test_predictions = model.predict(test_features).flatten()
